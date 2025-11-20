@@ -1,5 +1,5 @@
 import express from 'express';
-import connection from '../backend-practice/database/connecDb.js';
+import connection from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
 import Otp from './schema/otpSchema.js';
 import axios from 'axios';
