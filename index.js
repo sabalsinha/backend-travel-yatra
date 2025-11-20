@@ -45,7 +45,8 @@ const sendMail = async (to, subject, html) => {
 
 app.post("/send-otp", async (req, res) => {
     try {
-        const { phone,email } = req.body;
+        const { email } = req.body;
+        
 
         const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
         const html = `
@@ -54,13 +55,14 @@ app.post("/send-otp", async (req, res) => {
         `;
         const emailSent = await sendMail(email,"Trip Enquiry Verification OTP",html)
         if (!emailSent) {
+            console.log("Failed to send OTP email");
             return res.json({
                 success: false,
                 message: "Failed to send OTP email"
             });
         }
         // Store OTP
-        await Otp.create({ phone, otp: generatedOtp });
+        await Otp.create({ email, otp: generatedOtp });
 
         res.json({ success: true, message: "OTP sent successfully" });
     } catch (err) {
@@ -72,16 +74,16 @@ app.post("/send-otp", async (req, res) => {
 
 app.post("/verify-otp", async (req, res) => {
     try {
-        const { phone, otp } = req.body;
+        const { email, otp } = req.body;
 
-        const record = await Otp.findOne({ phone, otp });
+        const record = await Otp.findOne({ email, otp });
 
         if (!record) {
             return res.json({ success: false, message: "Invalid OTP" });
         }
 
         // OTP is valid → delete OTP so it can't be reused
-        await Otp.deleteMany({ phone });
+        await Otp.deleteMany({ email });
 
         res.json({ success: true, message: "OTP verified" });
     } catch (err) {
