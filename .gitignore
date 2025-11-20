@@ -1,0 +1,111 @@
+# Generic backend .gitignore - Node, Python, Java, Go, Docker, IDEs, OS
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+node_modules/
+venv/
+.env
+.env.*
+.venv/
+
+# Build / distribution
+dist/
+build/
+out/
+target/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+htmlcov/
+.tox/
+.coverage
+coverage.xml
+.cache
+.pytest_cache/
+.mypy_cache/
+
+# Node / JS
+npm-debug.log
+.npm/
+.next/
+.nuxt/
+.cache/
+.jspm-cache/
+
+# Java / Gradle / Maven
+.gradle/
+build/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+
+# Go
+bin/
+*.test
+vendor/
+
+# Rust
+target/
+
+# Ruby
+.bundle/
+log/
+tmp/
+*.gem
+
+# Docker
+docker-compose.override.yml
+*.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Database
+*.sqlite3
+*.db
+*.sql
+
+# IDEs and editors
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+*.iml
+
+# Certificates, keys, secrets
+*.pem
+*.key
+secrets/
+private/
+
+# Coverage and reports
+coverage/
+lcov-report/
+nyc_output/
+
+# Misc
+*.swp
+*~
+.project
+.cache

@@ -4,6 +4,9 @@ import Booking from './schema/clientSchema.js';
 import Otp from './schema/otpSchema.js';
 import axios from 'axios';
 import cors from "cors";
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -13,13 +16,49 @@ app.get('/', (req, res) => {
     res.send('server running')
 })
 
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,          
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
+
+const sendMail = async (to, subject, html) => {
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to,
+      subject,
+      html
+    });
+
+    console.log("Email sent successfully");
+    return true;
+  } catch (err) {
+    console.error("Email Error:", err);
+    return false;
+  }
+};
+
 app.post("/send-otp", async (req, res) => {
     try {
-        const { phone } = req.body;
+        const { phone,email } = req.body;
 
-        const generatedOtp = 1234;
-        console.log("generated-otp",generatedOtp);
-
+        const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        const html = `
+            <h1>Your OTP is: <b>${generatedOtp}</b></h1>
+            <p>This OTP is valid for 5 minutes.</p>
+        `;
+        const emailSent = await sendMail(email,"Trip Enquiry Verification OTP",html)
+        if (!emailSent) {
+            return res.json({
+                success: false,
+                message: "Failed to send OTP email"
+            });
+        }
         // Store OTP
         await Otp.create({ phone, otp: generatedOtp });
 
