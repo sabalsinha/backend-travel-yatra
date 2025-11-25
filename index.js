@@ -1,6 +1,7 @@
 import express from 'express';
 import connection from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
+import Package from './schema/packageSchema.js';
 import Otp from './schema/otpSchema.js';
 import axios from 'axios';
 import cors from "cors";
@@ -24,6 +25,72 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
+  }
+});
+
+app.post("/upload-package", async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      priceMin,
+      priceMax,
+      duration,
+      imageUrl,
+      location,
+    } = req.body;
+
+    // Basic validation
+    if (!title || !priceMin || !priceMax || !duration || !imageUrl || !location) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields"
+      });
+    }
+
+    const newPackage = new Package({
+      title,
+      description,
+      priceMin,
+      priceMax,
+      duration,
+      imageUrl,
+      location,
+    });
+
+    await newPackage.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Package uploaded successfully",
+      data: newPackage
+    });
+
+  } catch (error) {
+    console.error("Error uploading package:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
+  }
+});
+
+app.get("/get-packages", async (req, res) => {
+  try {
+    const packages = await Package.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: packages.length,
+      data: packages
+    });
+  } catch (error) {
+    console.error("Error fetching packages:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
   }
 });
 
@@ -51,8 +118,8 @@ app.post("/send-otp", async (req, res) => {
 
         const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
         const html = `
-            <h1>Your OTP is: <b>${generatedOtp}</b></h1>
-            <p>This OTP is valid for 5 minutes.</p>
+            <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
+            <p>This otp is valid for 5 minutes.</p>
         `;
         const emailSent = await sendMail(email,"Trip Enquiry Verification OTP",html)
         if (!emailSent) {

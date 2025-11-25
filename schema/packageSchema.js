@@ -13,15 +13,35 @@ const packageSchema = new mongoose.Schema(
       trim: true
     },
 
-    price: {
+    // Full price range (optional but recommended)
+    priceMin: {
+      type: Number,
+      required: true
+    },
+    priceMax: {
       type: Number,
       required: true
     },
 
+    // For simple UI use
+    duration: {
+      type: String, // e.g., "5–7 Days"
+      required: true
+    },
+
+    // Single image (main)
     imageUrl: {
       type: String,
-      required: true // link to Google Drive image
+      required: true
     },
+
+    // Matching your tab-based UI
+    location: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
 
     createdAt: {
       type: Date,
