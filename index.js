@@ -20,6 +20,7 @@ const limiter = rateLimit({
   max: 100, // 100 requests per 15 min
 });
 
+
 // const emailler = "aniketmailme2011@gmail.com";
 // sendOtpEmail(emailler,otp).then(() => {
 //     console.log("OTP email sent successfully");
@@ -137,6 +138,18 @@ const sendMail = async (to, subject, html) => {
     return false;
   }
 };
+const email = "sabalsinha10@gmail.com";
+const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        const html = `
+            <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
+            <p>This otp is valid for 5 minutes.</p>
+        `;
+sendEmail({
+  to: email,
+  subject: "Trip Enquiry Verification OTP",
+  text: "Please use this otp for verification",
+  html: html,
+});
 
 app.post("/send-otp", async (req, res) => {
     try {
@@ -148,7 +161,12 @@ app.post("/send-otp", async (req, res) => {
             <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
             <p>This otp is valid for 5 minutes.</p>
         `;
-        const emailSent = await sendEmail(email,"Trip Enquiry Verification OTP","Please use this otp for verification",html)
+        const emailSent = await sendEmail({
+  to: email,
+  subject: "Trip Enquiry Verification OTP",
+  text: "Please use this otp for verification",
+  html: html,
+});
         if (!emailSent) {
             console.log("Failed to send OTP email");
             return res.json({
