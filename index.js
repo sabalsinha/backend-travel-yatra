@@ -138,18 +138,18 @@ const sendMail = async (to, subject, html) => {
     return false;
   }
 };
-const email = "sabalsinha10@gmail.com";
-const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        const html = `
-            <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
-            <p>This otp is valid for 5 minutes.</p>
-        `;
-sendEmail({
-  to: email,
-  subject: "Trip Enquiry Verification OTP",
-  text: "Please use this otp for verification",
-  html: html,
-});
+// const email = "sabalsinha10@gmail.com";
+// const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+//         const html = `
+//             <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
+//             <p>This otp is valid for 5 minutes.</p>
+//         `;
+// sendEmail({
+//   to: email,
+//   subject: "Trip Enquiry Verification OTP",
+//   text: "Please use this otp for verification",
+//   html: html,
+// });
 
 app.post("/send-otp", async (req, res) => {
     try {
