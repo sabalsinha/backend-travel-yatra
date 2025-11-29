@@ -3,17 +3,38 @@ import connection from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
 import Package from './schema/packageSchema.js';
 import Otp from './schema/otpSchema.js';
-import axios from 'axios';
+// import axios from 'axios';
 import cors from "cors";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
+// import { basicAuth } from './utility/auth.js';
+// import helmet from 'helmet';
+// import mongoSanitize from "express-mongo-sanitize";
+import { sendEmail } from './utility/sendGrid.js';
+// import { sendEmail } from './utility/awsMail.js';
+// import { sendOtpEmail } from './utility/awsNodemailer.js';
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100, // 100 requests per 15 min
+});
+
+// const emailler = "aniketmailme2011@gmail.com";
+// sendOtpEmail(emailler,otp).then(() => {
+//     console.log("OTP email sent successfully");
+// }).catch((err) => {
+//     console.log("Failed to send OTP email", err);
+// });
 dotenv.config();
 const app = express();
 app.use(express.json());
+// app.use(mongoSanitize());
+// app.use(helmet());
+app.use(limiter);
 app.use(
   cors({
-    origin: "*",
+    origin: ["*"],
     methods: "GET,POST,PUT,DELETE,PATCH",
     allowedHeaders: "Content-Type,Authorization",
   })
@@ -81,7 +102,7 @@ app.post("/upload-package", async (req, res) => {
   }
 });
 
-app.get("/get-packages", async (req, res) => {
+app.get("/get-packages", /*basicAuth,*/ async (req, res) => {
   try {
     const packages = await Package.find().sort({ createdAt: -1 });
 
@@ -127,7 +148,7 @@ app.post("/send-otp", async (req, res) => {
             <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
             <p>This otp is valid for 5 minutes.</p>
         `;
-        const emailSent = await sendMail(email,"Trip Enquiry Verification OTP",html)
+        const emailSent = await sendEmail(email,"Trip Enquiry Verification OTP","Please use this otp for verification",html)
         if (!emailSent) {
             console.log("Failed to send OTP email");
             return res.json({
