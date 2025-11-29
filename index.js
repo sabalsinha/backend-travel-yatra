@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from 'express';
 import connection from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
@@ -6,7 +8,6 @@ import Otp from './schema/otpSchema.js';
 // import axios from 'axios';
 import cors from "cors";
 import nodemailer from "nodemailer";
-import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 // import { basicAuth } from './utility/auth.js';
 // import helmet from 'helmet';
@@ -16,7 +17,7 @@ import { sendEmail } from './utility/sendGrid.js';
 // import { sendOtpEmail } from './utility/awsNodemailer.js';
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
+  windowMs: 15 * 60 * 1000,
   max: 100, // 100 requests per 15 min
 });
 
@@ -27,7 +28,6 @@ const limiter = rateLimit({
 // }).catch((err) => {
 //     console.log("Failed to send OTP email", err);
 // });
-dotenv.config();
 const app = express();
 app.use(express.json());
 // app.use(mongoSanitize());
@@ -43,12 +43,12 @@ app.use(
 
 connection();
 app.get('/', (req, res) => {
-    res.send('server running')
+  res.send('server running')
 })
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,          
+  port: 465,
   secure: true,
   auth: {
     user: process.env.SMTP_USER,
@@ -138,103 +138,137 @@ const sendMail = async (to, subject, html) => {
     return false;
   }
 };
-// const email = "sabalsinha10@gmail.com";
-// const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-//         const html = `
-//             <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
-//             <p>This otp is valid for 5 minutes.</p>
-//         `;
-// sendEmail({
-//   to: email,
-//   subject: "Trip Enquiry Verification OTP",
-//   text: "Please use this otp for verification",
-//   html: html,
-// });
 
 app.post("/send-otp", async (req, res) => {
-    try {
-        const { email } = req.body;
-        
+  try {
+    const { email } = req.body;
 
-        const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        const html = `
-            <h1>Your OTP is for package enquiry: <b>${generatedOtp}</b></h1>
-            <p>This otp is valid for 5 minutes.</p>
-        `;
-        const emailSent = await sendEmail({
-  to: email,
-  subject: "Trip Enquiry Verification OTP",
-  text: "Please use this otp for verification",
-  html: html,
-});
-        if (!emailSent) {
-            console.log("Failed to send OTP email");
-            return res.json({
-                success: false,
-                message: "Failed to send OTP email"
-            });
-        }
-        // Store OTP
-        await Otp.create({ email, otp: generatedOtp });
 
-        res.json({ success: true, message: "OTP sent successfully" });
-    } catch (err) {
-        console.log(err)
-        res.status(500).json({ success: false, message: "Server error" });
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const html = `<!DOCTYPE html>
+<html lang="en" style="margin:0; padding:0; font-family: Arial, Helvetica, sans-serif;">
+  <body style="background: #f4f6f8; margin:0; padding:20px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden;">
+      
+      <!-- Header -->
+      <tr style="background:#0d6efd;">
+        <td style="padding:20px; text-align:center;">
+          <img src="https://res.cloudinary.com/dxhl6umss/image/upload/v1763660196/logo-1_gou8qf.png" alt="Company Logo" style="max-width:120px; height:auto;" />
+        </td>
+      </tr>
+
+      <!-- Body -->
+      <tr>
+        <td style="padding:30px;">
+          <h2 style="color:#333; margin:0;">Your Verification Code</h2>
+          <p style="color:#555; font-size:15px; margin-top:10px;">
+            Use the OTP below to complete your verification for the Trip Enquiry.
+          </p>
+
+          <div style="margin:25px 0; text-align:center;">
+            <div style="display:inline-block; background:#0d6efd; color:#fff; font-size:32px; 
+                        letter-spacing:4px; padding:12px 25px; border-radius:8px; font-weight:bold;">
+              ${generatedOtp}
+            </div>
+          </div>
+
+          <p style="color:#555; font-size:15px; margin:0;">
+            This OTP is valid for <strong>5 minutes</strong>.  
+            Do not share this code with anyone.
+          </p>
+
+          <p style="color:#999; font-size:12px; margin-top:25px;">
+            If you did not request this OTP, please ignore this email.
+          </p>
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr style="background:#f1f3f5;">
+        <td style="text-align:center; padding:15px; color:#999; font-size:12px;">
+          © 2025 Your Company Name. All rights reserved.
+        </td>
+      </tr>
+
+    </table>
+  </body>
+</html>
+`
+
+    const emailSent = await sendEmail({
+      to: email,
+      subject: "Trip Enquiry Verification OTP",
+      text: "Please use this otp for verification",
+      html: html,
+    });
+    if (!emailSent) {
+      console.log("Failed to send OTP email");
+      return res.json({
+        success: false,
+        message: "Failed to send OTP email"
+      });
     }
+    // Store OTP
+    await Otp.create({ email, otp: generatedOtp });
+
+    res.json({ success: true, message: "OTP sent successfully" });
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 });
 
 
 app.post("/verify-otp", async (req, res) => {
-    try {
-        const { email, otp } = req.body;
+  try {
+    const { email, otp } = req.body;
 
-        const record = await Otp.findOne({ email, otp });
+    const record = await Otp.findOne({ email, otp });
 
-        if (!record) {
-            return res.json({ success: false, message: "Invalid OTP" });
-        }
-
-        // OTP is valid → delete OTP so it can't be reused
-        await Otp.deleteMany({ email });
-
-        res.json({ success: true, message: "OTP verified" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server error" });
+    if (!record) {
+      return res.json({ success: false, message: "Invalid OTP" });
     }
+
+    // OTP is valid → delete OTP so it can't be reused
+    await Otp.deleteMany({ email });
+
+    res.json({ success: true, message: "OTP verified" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 });
 
 
 app.post("/book", async (req, res) => {
-    try {
-        const { phone } = req.body;
+  try {
+    const { phone } = req.body;
 
-        // check if otp exists (means valid)
-        const otpRecord = await Otp.findOne({ phone });
+    // check if otp exists (means valid)
+    const otpRecord = await Otp.findOne({ phone });
 
-        if (otpRecord) {
-            return res.json({
-                success: false,
-                message: "OTP not verified",
-            });
-        }
-
-        const booking = new Booking(req.body);
-        await booking.save();
-
-        res.status(201).json({
-            success: true,
-            message: "Booking saved successfully",
-            data: booking,
-        });
-
-    } catch (error) {
-        res.status(500).json({ success: false, message: "Server Error" });
+    if (otpRecord) {
+      return res.json({
+        success: false,
+        message: "OTP not verified",
+      });
     }
+
+    const booking = new Booking(req.body);
+    await booking.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Booking saved successfully",
+      data: booking,
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
 });
 
 
 const port = 6060;
 app.listen(port, () => {
-    console.log(`app running on port ${port}`);
+  console.log(`app running on port ${port}`);
 })
