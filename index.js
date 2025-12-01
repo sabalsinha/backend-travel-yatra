@@ -188,7 +188,7 @@ app.post("/send-otp", async (req, res) => {
       <!-- Footer -->
       <tr style="background:#f1f3f5;">
         <td style="text-align:center; padding:15px; color:#999; font-size:12px;">
-          © 2025 Your Company Name. All rights reserved.
+          © 2018 Travel-Yatra. All rights reserved.
         </td>
       </tr>
 
