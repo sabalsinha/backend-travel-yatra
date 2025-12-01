@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from 'express';
+import compression from "compression";
 import connection from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
 import Package from './schema/packageSchema.js';
@@ -29,6 +30,7 @@ const limiter = rateLimit({
 //     console.log("Failed to send OTP email", err);
 // });
 const app = express();
+app.use(compression());
 app.use(express.json());
 // app.use(mongoSanitize());
 // app.use(helmet());
