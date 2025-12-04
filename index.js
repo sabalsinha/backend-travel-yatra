@@ -243,17 +243,22 @@ app.post("/verify-otp", async (req, res) => {
 
 app.post("/book", async (req, res) => {
   try {
-    const { phone } = req.body;
+    /////////////////////////////////////////////////////////////////
+    //working code for otp verification, to be implemeted later
+
+    // const { phone } = req.body;
 
     // check if otp exists (means valid)
-    const otpRecord = await Otp.findOne({ phone });
+    // const otpRecord = await Otp.findOne({ phone });
 
-    if (otpRecord) {
-      return res.json({
-        success: false,
-        message: "OTP not verified",
-      });
-    }
+    // if (otpRecord) {
+    //   return res.json({
+    //     success: false,
+    //     message: "OTP not verified",
+    //   });
+    // }
+
+    ///////////////////////////////////////////////////////////////////
 
     const booking = new Booking(req.body);
     await booking.save();

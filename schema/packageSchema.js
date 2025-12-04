@@ -41,8 +41,10 @@ const packageSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
-
-
+    person: {
+      type: Number,
+      default: 1
+    },
     createdAt: {
       type: Date,
       default: Date.now
