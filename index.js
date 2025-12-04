@@ -10,6 +10,10 @@ import Otp from './schema/otpSchema.js';
 import cors from "cors";
 import nodemailer from "nodemailer";
 import rateLimit from "express-rate-limit";
+import bcrypt from "bcrypt";
+import Login from "./schema/loginSchema.js";
+import { auth } from "./middleware/auth.js";
+import jwt from "jsonwebtoken";
 // import { basicAuth } from './utility/auth.js';
 // import helmet from 'helmet';
 // import mongoSanitize from "express-mongo-sanitize";
@@ -57,6 +61,59 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS
   }
 });
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log("Login attempt for email:", email);
+
+    // 1️⃣ Find admin
+    const admin = await Login.findOne({ email });
+    console.log("admin",admin)
+    if (!admin) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // 2️⃣ Compare password
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // 3️⃣ Create JWT
+    const token = jwt.sign(
+      { id: admin._id, email: admin.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    // 4️⃣ Send response
+    res.json({
+      success: true,
+      token,
+      admin: {
+        id: admin._id,
+        email: admin.email,
+      },
+    });
+
+  } catch (err) {
+    console.error("Login Error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+app.get("/api/bookings", auth, async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (err) {
+    console.error("Fetch bookings error:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch bookings" });
+  }
+});
+
 
 app.post("/upload-package", async (req, res) => {
   try {
