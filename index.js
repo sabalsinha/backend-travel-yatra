@@ -6,6 +6,7 @@ import connection from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
 import Package from './schema/packageSchema.js';
 import Otp from './schema/otpSchema.js';
+import mongoose from "mongoose";
 // import axios from 'axios';
 import cors from "cors";
 import nodemailer from "nodemailer";
@@ -50,7 +51,7 @@ app.use(
 
 connection();
 // ✅ CRON JOB — Keep MongoDB Warm (Every 5 Minutes)
-cron.schedule("*/5 * * * *", async () => {
+cron.schedule("*/10 * * * *", async () => {
   try {
     if (mongoose.connection.readyState === 1) {
       await mongoose.connection.db.admin().ping();
