@@ -14,6 +14,7 @@ import bcrypt from "bcrypt";
 import Login from "./schema/loginSchema.js";
 import { auth } from "./middleware/auth.js";
 import jwt from "jsonwebtoken";
+import cron from "node-cron";
 // import { basicAuth } from './utility/auth.js';
 // import helmet from 'helmet';
 // import mongoSanitize from "express-mongo-sanitize";
@@ -48,9 +49,28 @@ app.use(
 );
 
 connection();
-app.get('/', (req, res) => {
-  res.send('server running')
-})
+// ✅ CRON JOB — Keep MongoDB Warm (Every 5 Minutes)
+cron.schedule("*/5 * * * *", async () => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.db.admin().ping();
+      console.log("✅ MongoDB is warm:", new Date().toLocaleTimeString());
+    } else {
+      console.log("⚠️ MongoDB not connected");
+    }
+  } catch (err) {
+    console.error("❌ MongoDB warm-up failed:", err.message);
+  }
+});
+app.get("/health", async (req, res) => {
+  try {
+    await mongoose.connection.db.admin().ping();
+    res.json({ success: true, message: "DB alive ✅" });
+  } catch {
+    res.status(500).json({ success: false, message: "DB sleeping ❌" });
+  }
+});
+
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
