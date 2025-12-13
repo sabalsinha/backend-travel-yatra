@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import express from 'express';
 import compression from "compression";
-import { Connection } from "./database/connecDb.js";
+import connection from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
 import Package from './schema/packageSchema.js';
 import Otp from './schema/otpSchema.js';
@@ -49,6 +49,7 @@ app.use(
   })
 );
 
+connection();
 // ✅ CRON JOB — Keep MongoDB Warm (Every 5 Minutes)
 cron.schedule("*/10 * * * *", async () => {
   try {
@@ -62,14 +63,13 @@ cron.schedule("*/10 * * * *", async () => {
     console.error("❌ MongoDB warm-up failed:", err.message);
   }
 });
-app.get("/health", (req, res) => {
-  const dbState = mongoose.connection.readyState;
-  const isConnected = dbState === 1;
-  res.json({
-    success: isConnected,
-    message: isConnected ? "Server & DB alive ✅" : "DB not ready ❌",
-    db_state: dbState
-  });
+app.get("/health", async (req, res) => {
+  try {
+    await mongoose.connection.db.admin().ping();
+    res.json({ success: true, message: "DB alive ✅" });
+  } catch {
+    res.status(500).json({ success: false, message: "DB sleeping ❌" });
+  }
 });
 
 
@@ -317,204 +317,20 @@ app.post("/verify-otp", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+
 app.post("/book", async (req, res) => {
   try {
-    // working code for otp verification — to be implemented later
+    /////////////////////////////////////////////////////////////////
+    //working code for otp verification, to be implemeted later
+
     // const { phone } = req.body;
+
+    // check if otp exists (means valid)
     // const otpRecord = await Otp.findOne({ phone });
+
     // if (otpRecord) {
-    //   return res.json({ success: false, message: "OTP not verified" });
-    // }
-
-    const booking = new Booking(req.body);
-    await booking.save();
-    console.log("💾 Booking saved with id:", booking._id);
-
-    // ✅ Send booking notification email automatically
-    if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL) {
-      try {
-        const html = `<!DOCTYPE html>
-<html lang="en" style="margin:0; padding:0; font-family: Arial, Helvetica, sans-serif;">
-  <body style="background: #f4f6f8; margin:0; padding:20px;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-      
-      <!-- Header -->
-      <tr style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
-        <td style="padding:30px; text-align:center;">
-          <img src="https://res.cloudinary.com/dxhl6umss/image/upload/v1763660196/logo-1_gou8qf.png" alt="Travel-Yatra" style="max-width:150px; height:auto;" />
-          <h1 style="color:#fff; margin:15px 0 0 0; font-size:24px;">New Booking Received</h1>
-        </td>
-      </tr>
-
-      <!-- Body -->
-      <tr>
-        <td style="padding:30px;">
-          <p style="color:#333; font-size:16px; margin:0 0 20px 0;">
-            <strong>A new booking has been submitted!</strong>
-          </p>
-
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding:12px 0; color:#666; font-weight:bold; width:30%;">Name:</td>
-              <td style="padding:12px 0; color:#333;">${booking.name || 'N/A'}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding:12px 0; color:#666; font-weight:bold;">Email:</td>
-              <td style="padding:12px 0; color:#333;">${booking.email || 'N/A'}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding:12px 0; color:#666; font-weight:bold;">Phone:</td>
-              <td style="padding:12px 0; color:#333;">${booking.phone || 'N/A'}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding:12px 0; color:#666; font-weight:bold;">Package:</td>
-              <td style="padding:12px 0; color:#333;">${booking.package || 'N/A'}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding:12px 0; color:#666; font-weight:bold;">Travel Date:</td>
-              <td style="padding:12px 0; color:#333;">${booking.date || 'N/A'}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding:12px 0; color:#666; font-weight:bold;">Adults:</td>
-              <td style="padding:12px 0; color:#333;">${booking.adults || '0'}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding:12px 0; color:#666; font-weight:bold;">Children:</td>
-              <td style="padding:12px 0; color:#333;">${booking.children || '0'}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 0; color:#666; font-weight:bold;">Message:</td>
-              <td style="padding:12px 0; color:#333;">${booking.message || 'No additional message'}</td>
-            </tr>
-          </table>
-
-          <div style="background:#f8f9fa; padding:15px; border-left:4px solid #0d6efd; margin:20px 0;">
-            <p style="color:#666; margin:0; font-size:14px;">
-              <strong>Next Steps:</strong> Please reach out to the customer to confirm the booking details.
-            </p>
-          </div>
-
-          <p style="color:#999; font-size:12px; margin-top:25px;">
-            This is an automated email notification. Please do not reply to this email.
-          </p>
-        </td>
-      </tr>
-
-      <!-- Footer -->
-      <tr style="background:#f1f3f5;">
-        <td style="text-align:center; padding:20px; color:#999; font-size:12px;">
-          © 2024 Travel-Yatra. All rights reserved.
-        </td>
-      </tr>
-
-    </table>
-  </body>
-</html>`;
-
-        const adminEmail = process.env.ADMIN_EMAIL || process.env.SENDGRID_FROM_EMAIL;
-        
-        console.log("📧 Scheduling SendGrid booking email to:", adminEmail);
-        // Fire-and-forget SendGrid send to avoid blocking the HTTP response
-        void sendEmail({
-          to: adminEmail,
-          subject: `New Booking: ${booking.name} - ${booking.package}`,
-          text: `New booking received from ${booking.name} (${booking.email})`,
-          html: html,
-        }).then(async (emailResult) => {
-          if (emailResult && emailResult.success) {
-            console.log("✅ Booking email sent successfully via SendGrid to:", adminEmail);
-            return;
-          }
-          console.error("❌ SendGrid send failed:", emailResult?.error || 'unknown error');
-          if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-            try {
-              const smtpTo = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-              console.log("📧 Attempting SMTP fallback to:", smtpTo);
-              const smtpResult = await transporter.sendMail({
-                from: process.env.SMTP_USER,
-                to: smtpTo,
-                subject: `New Booking: ${booking.name} - ${booking.package}`,
-                html: html,
-              });
-              console.log("✅ Booking email sent via SMTP fallback:", smtpResult.messageId || smtpResult);
-            } catch (smtpErr) {
-              console.error("❌ SMTP fallback failed:", smtpErr.message || smtpErr);
-            }
-          } else {
-            console.warn("⚠️ SMTP credentials not configured; cannot fallback to SMTP");
-          }
-        }).catch(err => {
-          console.error('Unexpected error sending booking email (async):', err);
-        });
-      } catch (emailError) {
-        // Log error but don't fail the booking response
-        console.error("⚠️ Exception while sending booking email:", emailError.message);
-      }
-    } else {
-      console.warn("⚠️ SendGrid not configured. Trying fallback Gmail SMTP...");
-      // Fallback: use Gmail SMTP (nodemailer)
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        try {
-          const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-          const html = `<!DOCTYPE html>
-<html lang="en" style="margin:0; padding:0; font-family: Arial, Helvetica, sans-serif;">
-  <body style="background: #f4f6f8; margin:0; padding:20px;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-      <tr style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
-        <td style="padding:30px; text-align:center;">
-          <img src="https://res.cloudinary.com/dxhl6umss/image/upload/v1763660196/logo-1_gou8qf.png" alt="Travel-Yatra" style="max-width:150px; height:auto;" />
-          <h1 style="color:#fff; margin:15px 0 0 0; font-size:24px;">New Booking Received</h1>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:30px;">
-          <p style="color:#333; font-size:16px; margin:0 0 20px 0;">
-            <strong>A new booking has been submitted!</strong>
-          </p>
-          <p><strong>Name:</strong> ${booking.name || 'N/A'}</p>
-          <p><strong>Email:</strong> ${booking.email || 'N/A'}</p>
-          <p><strong>Phone:</strong> ${booking.phone || 'N/A'}</p>
-          <p><strong>Package:</strong> ${booking.package || 'N/A'}</p>
-          <p><strong>Travel Date:</strong> ${booking.date || 'N/A'}</p>
-          <p><strong>Adults:</strong> ${booking.adults || '0'}</p>
-          <p><strong>Children:</strong> ${booking.children || '0'}</p>
-          <p><strong>Message:</strong> ${booking.message || 'No additional message'}</p>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
-
-          console.log("📧 Scheduling Gmail SMTP booking email to:", adminEmail);
-          void transporter.sendMail({
-            from: process.env.SMTP_USER,
-            to: adminEmail,
-            subject: `New Booking: ${booking.name} - ${booking.package}`,
-            html: html,
-          }).then(result => {
-            console.log("✅ Booking email sent via Gmail SMTP:", result.messageId || result);
-          }).catch(err => {
-            console.error("❌ Failed to send via Gmail SMTP:", err.message || err);
-          });
-        } catch (smtpError) {
-          console.error("❌ Failed to send via Gmail SMTP:", smtpError.message);
-        }
-      } else {
-        console.warn("⚠️ No email service configured. Set SENDGRID_API_KEY or SMTP credentials.");
-      }
-    }
-
-    res.status(201).json({
-      success: true,
-      message: "Booking saved successfully",
-      data: booking,
-    });
-  } catch (error) {
-    console.error("Error saving booking:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-});
-
+    //   return res.json({
 
 // ✅ NEW ROUTE: Send booking notification email via SendGrid
 app.post("/api/send-booking-email", async (req, res) => {
@@ -609,37 +425,18 @@ app.post("/api/send-booking-email", async (req, res) => {
     
     const emailResult = await sendEmail({
       to: adminEmail,
-      subject: `New Booking: ${booking.name} - ${booking.package}`,
-      text: `New booking received from ${booking.name} (${booking.email})`,
+      subject: \`New Booking: \${booking.name} - \${booking.package}\`,
+      text: \`New booking received from \${booking.name} (\${booking.email})\`,
       html: html,
     });
 
-    if (emailResult && emailResult.success) {
+    if (emailResult.success) {
       console.log("✅ Booking notification email sent to:", adminEmail);
       return res.json({ success: true, message: "Email notification sent" });
+    } else {
+      console.error("❌ Failed to send booking email:", emailResult.error);
+      return res.status(500).json({ success: false, message: "Failed to send email" });
     }
-
-    console.error("❌ SendGrid failed to send booking email:", emailResult?.error || 'unknown error');
-    // Try SMTP fallback if configured
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const smtpTo = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-        console.log("📧 Attempting SMTP fallback to:", smtpTo);
-        const smtpResult = await transporter.sendMail({
-          from: process.env.SMTP_USER,
-          to: smtpTo,
-          subject: `New Booking: ${booking.name} - ${booking.package}`,
-          html: html,
-        });
-        console.log("✅ Booking email sent via SMTP fallback:", smtpResult.messageId || smtpResult);
-        return res.json({ success: true, message: "Email sent via SMTP fallback" });
-      } catch (smtpErr) {
-        console.error("❌ SMTP fallback failed:", smtpErr.message || smtpErr);
-        return res.status(500).json({ success: false, message: "Failed to send email" });
-      }
-    }
-
-    return res.status(500).json({ success: false, message: "Failed to send email" });
 
   } catch (error) {
     console.error("Error in send-booking-email:", error);
@@ -648,14 +445,7 @@ app.post("/api/send-booking-email", async (req, res) => {
 });
 
 
-const port = process.env.PORT || 6060;
-
-// Start server first (listen for requests)
-const server = app.listen(port, () => {
-  console.log(`✅ app running on port ${port}`);
-  
-  // Connect to DB asynchronously (don't block server startup)
-  Connection().catch(err => {
-    console.error("❌ DB connection error (non-blocking):", err.message);
-  });
+const port = 6060;
+app.listen(port, () => {
+  console.log(`app running on port ${port}`);
 });
