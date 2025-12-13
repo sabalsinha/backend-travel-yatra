@@ -9,11 +9,13 @@ export const Connection = async () => {
 
   if (uri) {
     try {
-      await mongoose.connect(uri, { keepAlive: true });
+      // keepAlive option is deprecated/unsupported in newer drivers; rely on defaults
+      await mongoose.connect(uri, { serverSelectionTimeoutMS: 8000 });
       console.log("✅ Connected to MongoDB:", uri);
       return;
     } catch (err) {
       console.error("❌ MongoDB Connection Error (env MONGO_URI):", err.message);
+      if (nodeEnv === 'production') throw err;
     }
   }
 
