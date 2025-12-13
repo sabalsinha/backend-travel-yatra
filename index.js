@@ -72,6 +72,52 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Seed endpoint (one-time use in production)
+app.post("/api/seed", async (req, res) => {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL || 'travelyatra522018@gmail.com';
+    
+    // Check if admin exists
+    let admin = await Login.findOne({ email: adminEmail });
+    if (!admin) {
+      const hashed = await bcrypt.hash('Admin@1234', 10);
+      admin = new Login({
+        name: 'Admin',
+        email: adminEmail,
+        password: hashed,
+        role: 'admin',
+      });
+      await admin.save();
+    }
+
+    // Check if package exists
+    let pkg = await Package.findOne();
+    if (!pkg) {
+      pkg = new Package({
+        title: 'Sample Package - Seeded',
+        description: 'This is a sample package created by seed endpoint.',
+        priceMin: 99,
+        priceMax: 199,
+        duration: '3 days',
+        imageUrl: 'https://via.placeholder.com/800x600.png?text=Travel+Yatra+Sample+Package',
+        location: 'Sample Location',
+        person: 2,
+      });
+      await pkg.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Database seeded successfully',
+      admin: { email: admin.email },
+      package: { title: pkg.title }
+    });
+  } catch (err) {
+    console.error('Seed error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
