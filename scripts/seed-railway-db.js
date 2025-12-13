@@ -32,8 +32,12 @@ async function seed() {
       const sample = new Package({
         title: 'Sample Package - Seeded',
         description: 'This is a sample package created by seed script.',
-        price: 99,
+        priceMin: 99,
+        priceMax: 199,
         duration: '3 days',
+        imageUrl: 'https://via.placeholder.com/800x600.png?text=Travel+Yatra+Sample+Package',
+        location: 'Sample Location',
+        person: 2,
       });
       await sample.save();
       console.log('Created sample package');
