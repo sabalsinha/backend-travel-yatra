@@ -35,7 +35,7 @@ export const Connection = async () => {
     const { MongoMemoryServer } = await import('mongodb-memory-server');
     mongod = await MongoMemoryServer.create();
     const memUri = mongod.getUri();
-    await mongoose.connect(memUri, { keepAlive: true });
+    await mongoose.connect(memUri, { serverSelectionTimeoutMS: 8000 });
     console.log("✅ Connected to in-memory MongoDB");
   } catch (memErr) {
     console.error("❌ In-memory MongoDB failed:", memErr && memErr.message ? memErr.message : memErr);
