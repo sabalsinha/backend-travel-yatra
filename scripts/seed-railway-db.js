@@ -1,6 +1,6 @@
 import Connection from '../database/connecDb.js';
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import Login from '../schema/loginSchema.js';
 import Package from '../schema/packageSchema.js';
 
