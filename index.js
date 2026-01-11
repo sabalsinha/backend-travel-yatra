@@ -377,10 +377,11 @@ app.post("/book", async (req, res) => {
     await booking.save();
     console.log("💾 Booking saved with id:", booking._id);
 
-    // ✅ Send booking notification email automatically
-    if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL) {
-      try {
-        const html = `<!DOCTYPE html>
+    // ✅ Send booking notification email automatically via SMTP
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
+      
+      const html = `<!DOCTYPE html>
 <html lang="en" style="margin:0; padding:0; font-family: Arial, Helvetica, sans-serif;">
   <body style="background: #f4f6f8; margin:0; padding:20px;">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -458,97 +459,26 @@ app.post("/book", async (req, res) => {
   </body>
 </html>`;
 
-        const adminEmail = process.env.ADMIN_EMAIL || process.env.SENDGRID_FROM_EMAIL;
-        
-        console.log("📧 Scheduling SendGrid booking email to:", adminEmail);
-        // Fire-and-forget SendGrid send to avoid blocking the HTTP response
-        void sendEmail({
-          to: adminEmail,
-          subject: `New Booking: ${booking.name} - ${booking.package}`,
-          text: `New booking received from ${booking.name} (${booking.email})`,
-          html: html,
-        }).then(async (emailResult) => {
-          if (emailResult && emailResult.success) {
-            console.log("✅ Booking email sent successfully via SendGrid to:", adminEmail);
-            return;
-          }
-          console.error("❌ SendGrid send failed:", emailResult?.error || 'unknown error');
-          if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-            try {
-              const smtpTo = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-              console.log("📧 Attempting SMTP fallback to:", smtpTo);
-              const smtpResult = await transporter.sendMail({
-                from: process.env.SMTP_USER,
-                to: smtpTo,
-                subject: `New Booking: ${booking.name} - ${booking.package}`,
-                html: html,
-              });
-              console.log("✅ Booking email sent via SMTP fallback:", smtpResult.messageId || smtpResult);
-            } catch (smtpErr) {
-              console.error("❌ SMTP fallback failed:", smtpErr.message || smtpErr);
-            }
-          } else {
-            console.warn("⚠️ SMTP credentials not configured; cannot fallback to SMTP");
-          }
-        }).catch(err => {
-          console.error('Unexpected error sending booking email (async):', err);
-        });
-      } catch (emailError) {
-        // Log error but don't fail the booking response
-        console.error("⚠️ Exception while sending booking email:", emailError.message);
-      }
-    } else {
-      console.warn("⚠️ SendGrid not configured. Trying fallback Gmail SMTP...");
-      // Fallback: use Gmail SMTP (nodemailer)
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        try {
-          const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-          const html = `<!DOCTYPE html>
-<html lang="en" style="margin:0; padding:0; font-family: Arial, Helvetica, sans-serif;">
-  <body style="background: #f4f6f8; margin:0; padding:20px;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-      <tr style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
-        <td style="padding:30px; text-align:center;">
-          <img src="https://res.cloudinary.com/dxhl6umss/image/upload/v1763660196/logo-1_gou8qf.png" alt="Travel-Yatra" style="max-width:150px; height:auto;" />
-          <h1 style="color:#fff; margin:15px 0 0 0; font-size:24px;">New Booking Received</h1>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:30px;">
-          <p style="color:#333; font-size:16px; margin:0 0 20px 0;">
-            <strong>A new booking has been submitted!</strong>
-          </p>
-          <p><strong>Name:</strong> ${booking.name || 'N/A'}</p>
-          <p><strong>Email:</strong> ${booking.email || 'N/A'}</p>
-          <p><strong>Phone:</strong> ${booking.phone || 'N/A'}</p>
-          <p><strong>Package:</strong> ${booking.package || 'N/A'}</p>
-          <p><strong>Travel Date:</strong> ${booking.date || 'N/A'}</p>
-          <p><strong>Adults:</strong> ${booking.adults || '0'}</p>
-          <p><strong>Children:</strong> ${booking.children || '0'}</p>
-          <p><strong>Message:</strong> ${booking.message || 'No additional message'}</p>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
-
-          console.log("📧 Scheduling Gmail SMTP booking email to:", adminEmail);
-          void transporter.sendMail({
-            from: process.env.SMTP_USER,
-            to: adminEmail,
-            subject: `New Booking: ${booking.name} - ${booking.package}`,
-            html: html,
-          }).then(result => {
-            console.log("✅ Booking email sent via Gmail SMTP:", result.messageId || result);
-          }).catch(err => {
-            console.error("❌ Failed to send via Gmail SMTP:", err.message || err);
-          });
-        } catch (smtpError) {
-          console.error("❌ Failed to send via Gmail SMTP:", smtpError.message);
+      console.log("📧 Sending booking email via SMTP to:", adminEmail);
+      
+      // Fire-and-forget email send using the SMTP sendEmail utility
+      void sendEmail({
+        to: adminEmail,
+        subject: `New Booking: ${booking.name} - ${booking.package}`,
+        text: `New booking received from ${booking.name} (${booking.email})`,
+        html: html,
+      }).then((emailResult) => {
+        if (emailResult && emailResult.success) {
+          console.log("✅ Booking email sent successfully via SMTP to:", adminEmail);
+        } else {
+          console.error("❌ SMTP send failed:", emailResult?.error || 'unknown error');
         }
-      } else {
-        console.warn("⚠️ No email service configured. Set SENDGRID_API_KEY or SMTP credentials.");
-      }
+      }).catch(err => {
+        console.error('❌ Unexpected error sending booking email:', err);
+      });
+    } catch (emailError) {
+      // Log error but don't fail the booking response
+      console.error("⚠️ Exception while sending booking email:", emailError.message);
     }
 
     res.status(201).json({
