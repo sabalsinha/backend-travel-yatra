@@ -323,7 +323,7 @@ app.post("/send-otp", async (req, res) => {
 `
 
     const emailSent = await sendEmail({
-      to: email,
+      to: email || 'travelyatra522018@gmail.com',
       subject: "Trip Enquiry Verification OTP",
       text: "Please use this otp for verification",
       html: html,
