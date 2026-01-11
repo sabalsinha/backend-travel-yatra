@@ -26,6 +26,12 @@ import { sendEmail } from './utility/sendGrid.js';
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100, // 100 requests per 15 min
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Custom key generator to handle proxy IPs
+  keyGenerator: (req) => {
+    return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  }
 });
 
 
