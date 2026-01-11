@@ -41,6 +41,7 @@ app.use(express.json());
 // app.use(mongoSanitize());
 // app.use(helmet());
 app.use(limiter);
+app.set('trust proxy', 1); // Trust Railway proxy
 app.use(
   cors({
     origin: "*",
@@ -581,7 +582,7 @@ app.post("/api/send-booking-email", async (req, res) => {
       <tr style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
         <td style="padding:30px; text-align:center;">
           <img src="https://res.cloudinary.com/dxhl6umss/image/upload/v1763660196/logo-1_gou8qf.png" alt="Travel-Yatra" style="max-width:150px; height:auto;" />
-          <h1 style="color:#fff; margin:15px 0 0 0; font-size:24px;">New Booking Received</h1>
+          <h1 style="color:#fff; margin:15px 0 0 0; font-size:24px;">🎉 New Lead Received</h1>
         </td>
       </tr>
 
@@ -650,8 +651,8 @@ app.post("/api/send-booking-email", async (req, res) => {
   </body>
 </html>`;
 
-    // Send email to admin (configure your admin email in .env as ADMIN_EMAIL)
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.SENDGRID_FROM_EMAIL;
+    // Send email to admin
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
     
     const emailResult = await sendEmail({
       to: adminEmail,
@@ -665,30 +666,116 @@ app.post("/api/send-booking-email", async (req, res) => {
       return res.json({ success: true, message: "Email notification sent" });
     }
 
-    console.error("❌ SendGrid failed to send booking email:", emailResult?.error || 'unknown error');
-    // Try SMTP fallback if configured
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const smtpTo = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-        console.log("📧 Attempting SMTP fallback to:", smtpTo);
-        const smtpResult = await transporter.sendMail({
-          from: process.env.SMTP_USER,
-          to: smtpTo,
-          subject: `New Booking: ${booking.name} - ${booking.package}`,
-          html: html,
-        });
-        console.log("✅ Booking email sent via SMTP fallback:", smtpResult.messageId || smtpResult);
-        return res.json({ success: true, message: "Email sent via SMTP fallback" });
-      } catch (smtpErr) {
-        console.error("❌ SMTP fallback failed:", smtpErr.message || smtpErr);
-        return res.status(500).json({ success: false, message: "Failed to send email" });
-      }
-    }
-
+    console.error("❌ Failed to send booking email:", emailResult?.error || 'unknown error');
     return res.status(500).json({ success: false, message: "Failed to send email" });
 
   } catch (error) {
     console.error("Error in send-booking-email:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ✅ PUT /api/packages/:id - Edit package (auth protected)
+app.put("/api/packages/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid package ID" });
+    }
+
+    const {
+      title,
+      description,
+      priceMin,
+      priceMax,
+      duration,
+      imageUrl,
+      location,
+      person,
+    } = req.body;
+
+    const updatedPackage = await Package.findByIdAndUpdate(
+      id,
+      {
+        title,
+        description,
+        priceMin,
+        priceMax,
+        duration,
+        imageUrl,
+        location,
+        person,
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedPackage) {
+      return res.status(404).json({ success: false, message: "Package not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Package updated successfully",
+      data: updatedPackage,
+    });
+  } catch (error) {
+    console.error("Error updating package:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ✅ DELETE /api/bookings/:id - Delete booking (auth protected)
+app.delete("/api/bookings/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid booking ID" });
+    }
+
+    const deletedBooking = await Booking.findByIdAndDelete(id);
+
+    if (!deletedBooking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Booking deleted successfully",
+      data: deletedBooking,
+    });
+  } catch (error) {
+    console.error("Error deleting booking:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ✅ DELETE /api/packages/:id - Delete package (auth protected)
+app.delete("/api/packages/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid package ID" });
+    }
+
+    const deletedPackage = await Package.findByIdAndDelete(id);
+
+    if (!deletedPackage) {
+      return res.status(404).json({ success: false, message: "Package not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Package deleted successfully",
+      data: deletedPackage,
+    });
+  } catch (error) {
+    console.error("Error deleting package:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
