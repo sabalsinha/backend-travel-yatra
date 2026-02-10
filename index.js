@@ -376,22 +376,24 @@ app.post("/book", async (req, res) => {
     await booking.save();
     console.log("💾 Booking saved with id:", booking._id);
 
-    // ✅ Send customer enquiry confirmation email (AWAITED - synchronous)
+    // ✅ Send emails in BACKGROUND (non-blocking) for fast API response
+    // Emails will be sent asynchronously without waiting
     if (booking.email && booking.name) {
-      try {
-        console.log("📧 Starting customer enquiry email send...");
-        const customerEmailResult = await sendCustomerEnquiryEmail(booking.name, booking.email);
-        if (customerEmailResult && customerEmailResult.success) {
-          console.log("✅ Customer enquiry email sent successfully to:", booking.email);
-        } else {
-          console.error("❌ Failed to send customer email:", customerEmailResult?.error || 'unknown error');
-        }
-      } catch (customerEmailError) {
-        console.error("❌ Exception while sending customer email:", customerEmailError.message);
-      }
+      // Send customer email in background
+      sendCustomerEnquiryEmail(booking.name, booking.email)
+        .then((result) => {
+          if (result && result.success) {
+            console.log("✅ Customer enquiry email sent successfully to:", booking.email);
+          } else {
+            console.error("❌ Failed to send customer email:", result?.error || 'unknown error');
+          }
+        })
+        .catch(err => {
+          console.error('❌ Error sending customer email:', err.message);
+        });
     }
 
-    // ✅ Send booking notification email automatically via SMTP (AWAITED - synchronous)
+    // ✅ Send admin notification email in BACKGROUND (non-blocking)
     try {
       const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
       
@@ -475,23 +477,26 @@ app.post("/book", async (req, res) => {
 
       console.log("📧 Sending booking email via SMTP to:", adminEmail);
       
-      // ✅ AWAIT email send (synchronous - real-time delivery)
-      // Send to both admin emails directly (more reliable than CC with Gmail SMTP)
-      const adminEmailResult = await sendEmail({
+      // ✅ Send admin email in BACKGROUND (non-blocking - no await)
+      sendEmail({
         to: [adminEmail, 'travelyatra98@gmail.com'].join(', '),
         subject: `New Booking: ${booking.name} - ${booking.package}`,
         text: `New booking received from ${booking.name} (${booking.email})`,
         html: html,
-      });
-      
-      if (adminEmailResult && adminEmailResult.success) {
-        console.log("✅ Booking email sent successfully via SMTP to:", adminEmail, "and travelyatra98@gmail.com");
-      } else {
-        console.error("❌ SMTP send failed:", adminEmailResult?.error || 'unknown error');
-      }
+      })
+        .then((result) => {
+          if (result && result.success) {
+            console.log("✅ Booking email sent successfully to:", adminEmail, "and travelyatra98@gmail.com");
+          } else {
+            console.error("❌ SMTP send failed:", result?.error || 'unknown error');
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Error sending admin email:", err.message);
+        });
     } catch (emailError) {
       // Log error but don't fail the booking response
-      console.error("⚠️ Exception while sending booking email:", emailError.message);
+      console.error("⚠️ Exception while setting up booking email:", emailError.message);
     }
 
     res.status(201).json({
