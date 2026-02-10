@@ -20,6 +20,7 @@ import cron from "node-cron";
 // import helmet from 'helmet';
 // import mongoSanitize from "express-mongo-sanitize";
 import { sendEmail } from './utility/sendGrid.js';
+import { sendCustomerEnquiryEmail } from './utility/sendCustomerEmail.js';
 // import { sendEmail } from './utility/awsMail.js';
 // import { sendOtpEmail } from './utility/awsNodemailer.js';
 
@@ -28,24 +29,16 @@ const limiter = rateLimit({
   max: 100, // 100 requests per 15 min
   standardHeaders: true,
   legacyHeaders: false,
-  // Custom key generator to handle proxy IPs
-  keyGenerator: (req) => {
-    return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
-  }
+  // Use default key generator for IPv6 compatibility
+  skip: (req) => process.env.NODE_ENV === 'test'
 });
 
 
-// const emailler = "aniketmailme2011@gmail.com";
-// sendOtpEmail(emailler,otp).then(() => {
-//     console.log("OTP email sent successfully");
-// }).catch((err) => {
-//     console.log("Failed to send OTP email", err);
-// });
+
 const app = express();
 app.use(compression());
 app.use(express.json());
-// app.use(mongoSanitize());
-// app.use(helmet());
+
 app.use(limiter);
 app.set('trust proxy', 1); // Trust Railway proxy
 app.use(
@@ -383,7 +376,22 @@ app.post("/book", async (req, res) => {
     await booking.save();
     console.log("💾 Booking saved with id:", booking._id);
 
-    // ✅ Send booking notification email automatically via SMTP
+    // ✅ Send customer enquiry confirmation email (AWAITED - synchronous)
+    if (booking.email && booking.name) {
+      try {
+        console.log("📧 Starting customer enquiry email send...");
+        const customerEmailResult = await sendCustomerEnquiryEmail(booking.name, booking.email);
+        if (customerEmailResult && customerEmailResult.success) {
+          console.log("✅ Customer enquiry email sent successfully to:", booking.email);
+        } else {
+          console.error("❌ Failed to send customer email:", customerEmailResult?.error || 'unknown error');
+        }
+      } catch (customerEmailError) {
+        console.error("❌ Exception while sending customer email:", customerEmailError.message);
+      }
+    }
+
+    // ✅ Send booking notification email automatically via SMTP (AWAITED - synchronous)
     try {
       const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
       
@@ -467,21 +475,20 @@ app.post("/book", async (req, res) => {
 
       console.log("📧 Sending booking email via SMTP to:", adminEmail);
       
-      // Fire-and-forget email send using the SMTP sendEmail utility
-      void sendEmail({
-        to: adminEmail,
+      // ✅ AWAIT email send (synchronous - real-time delivery)
+      // Send to both admin emails directly (more reliable than CC with Gmail SMTP)
+      const adminEmailResult = await sendEmail({
+        to: [adminEmail, 'travelyatra98@gmail.com'].join(', '),
         subject: `New Booking: ${booking.name} - ${booking.package}`,
         text: `New booking received from ${booking.name} (${booking.email})`,
         html: html,
-      }).then((emailResult) => {
-        if (emailResult && emailResult.success) {
-          console.log("✅ Booking email sent successfully via SMTP to:", adminEmail);
-        } else {
-          console.error("❌ SMTP send failed:", emailResult?.error || 'unknown error');
-        }
-      }).catch(err => {
-        console.error('❌ Unexpected error sending booking email:', err);
       });
+      
+      if (adminEmailResult && adminEmailResult.success) {
+        console.log("✅ Booking email sent successfully via SMTP to:", adminEmail, "and travelyatra98@gmail.com");
+      } else {
+        console.error("❌ SMTP send failed:", adminEmailResult?.error || 'unknown error');
+      }
     } catch (emailError) {
       // Log error but don't fail the booking response
       console.error("⚠️ Exception while sending booking email:", emailError.message);
