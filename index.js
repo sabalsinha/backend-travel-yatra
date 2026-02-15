@@ -30,8 +30,23 @@ const limiter = rateLimit({
   max: 100, // 100 requests per 15 min
   standardHeaders: true,
   legacyHeaders: false,
-  // Use default key generator for IPv6 compatibility
-  skip: (req) => process.env.NODE_ENV === 'test'
+  skip: (req) => process.env.NODE_ENV === 'test',
+  // Use a resilient key generator to avoid invalid IP parsing behind proxies
+  keyGenerator: (req) => {
+    // Prefer X-Forwarded-For first value, then X-Real-IP, then req.ip/socket
+    const xff = req.headers["x-forwarded-for"];
+    const forwarded = Array.isArray(xff)
+      ? xff[0]
+      : (typeof xff === "string" ? xff.split(",")[0] : undefined);
+    const candidate = forwarded
+      || (typeof req.headers["x-real-ip"] === "string" ? req.headers["x-real-ip"] : undefined)
+      || req.ip
+      || (req.socket && req.socket.remoteAddress)
+      || "unknown";
+
+    // Sanitize: trim, remove leading backslashes or spaces
+    return String(candidate).trim().replace(/^\\+/, "");
+  }
 });
 
 
@@ -40,8 +55,9 @@ const app = express();
 app.use(compression());
 app.use(express.json());
 
-app.use(limiter);
+// Trust proxy BEFORE rate limiter so req.ip resolves correctly
 app.set('trust proxy', 1); // Trust Railway proxy
+app.use(limiter);
 app.use(
   cors({
     origin: "*",
