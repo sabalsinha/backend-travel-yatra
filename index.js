@@ -6,6 +6,7 @@ import { Connection } from "./database/connecDb.js";
 import Booking from './schema/clientSchema.js';
 import Package from './schema/packageSchema.js';
 import Otp from './schema/otpSchema.js';
+import Contact from './schema/contactSchema.js';
 import mongoose from "mongoose";
 // import axios from 'axios';
 import cors from "cors";
@@ -178,6 +179,40 @@ app.get("/api/bookings", auth, async (req, res) => {
   } catch (err) {
     console.error("Fetch bookings error:", err);
     res.status(500).json({ success: false, message: "Failed to fetch bookings" });
+  }
+});
+
+app.post("/api/contacts", async (req, res) => {
+  try {
+    const { name, contact, email } = req.body;
+
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+    const trimmedEmail = typeof email === "string" ? email.trim() : "";
+    const trimmedContact = typeof contact === "string" ? contact.trim() : undefined;
+
+    if (!trimmedName || !trimmedEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and email are required",
+      });
+    }
+
+    const newContact = new Contact({
+      name: trimmedName,
+      email: trimmedEmail,
+      contact: trimmedContact || undefined,
+    });
+
+    await newContact.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Contact saved successfully",
+      data: newContact,
+    });
+  } catch (error) {
+    console.error("Error saving contact:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
