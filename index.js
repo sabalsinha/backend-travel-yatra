@@ -198,6 +198,52 @@ app.get("/api/bookings", auth, async (req, res) => {
   }
 });
 
+// Get single booking by ID (auth protected)
+app.get("/api/bookings/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid booking ID" });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    res.json({ success: true, data: booking });
+  } catch (err) {
+    console.error("Fetch booking by id error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// List recent contacts with simple pagination
+app.get("/api/contacts", async (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || "20", 10)));
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      Contact.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Contact.countDocuments()
+    ]);
+
+    res.json({
+      success: true,
+      page,
+      limit,
+      total,
+      count: data.length,
+      data,
+    });
+  } catch (err) {
+    console.error("Fetch contacts error:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch contacts" });
+  }
+});
+
 // Assign a booking to a contact and email the lead details
 app.post("/api/bookings/:id/assign", async (req, res) => {
   try {
