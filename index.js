@@ -198,6 +198,83 @@ app.get("/api/bookings", auth, async (req, res) => {
   }
 });
 
+// Assign a booking to a contact and email the lead details
+app.post("/api/bookings/:id/assign", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assigneeEmail, assigneeName, cc } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid booking ID" });
+    }
+
+    if (!assigneeEmail) {
+      return res.status(400).json({ success: false, message: "assigneeEmail is required" });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    const displayName = assigneeName || "Team Member";
+
+    const html = `<!DOCTYPE html>
+<html lang="en" style="margin:0; padding:0; font-family: Arial, Helvetica, sans-serif;">
+  <body style="background: #f4f6f8; margin:0; padding:20px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:640px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+      <tr style="background:#0d6efd;">
+        <td style="padding:24px; text-align:center; color:#fff;">
+          <img src="https://res.cloudinary.com/dxhl6umss/image/upload/v1763660196/logo-1_gou8qf.png" alt="Travel-Yatra" style="max-width:140px; height:auto; display:block; margin:0 auto 6px;" />
+          <div style="font-size:20px;">New Lead Assigned to ${displayName}</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:24px;">
+          <p style="margin:0 0 12px; color:#333;">Hello ${displayName},</p>
+          <p style="margin:0 0 16px; color:#555;">You have been assigned the following lead. Please reach out to the customer and proceed with the next steps.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
+            <tr><td style="padding:8px 0; width:32%; color:#666; font-weight:bold;">Name:</td><td style="padding:8px 0; color:#333;">${booking.name || 'N/A'}</td></tr>
+            <tr><td style="padding:8px 0; color:#666; font-weight:bold;">Email:</td><td style="padding:8px 0; color:#333;">${booking.email || 'N/A'}</td></tr>
+            <tr><td style="padding:8px 0; color:#666; font-weight:bold;">Phone:</td><td style="padding:8px 0; color:#333;">${booking.phone || 'N/A'}</td></tr>
+            <tr><td style="padding:8px 0; color:#666; font-weight:bold;">Package:</td><td style="padding:8px 0; color:#333;">${booking.package || 'N/A'}</td></tr>
+            <tr><td style="padding:8px 0; color:#666; font-weight:bold;">Travel Date:</td><td style="padding:8px 0; color:#333;">${booking.date ? new Date(booking.date).toLocaleDateString() : 'N/A'}</td></tr>
+            <tr><td style="padding:8px 0; color:#666; font-weight:bold;">Adults:</td><td style="padding:8px 0; color:#333;">${booking.adults ?? '0'}</td></tr>
+            <tr><td style="padding:8px 0; color:#666; font-weight:bold;">Children:</td><td style="padding:8px 0; color:#333;">${booking.children ?? '0'}</td></tr>
+            <tr><td style="padding:8px 0; color:#666; font-weight:bold;">Message:</td><td style="padding:8px 0; color:#333;">${booking.message || 'No additional message'}</td></tr>
+          </table>
+          <div style="background:#f8f9fa; padding:14px; border-left:4px solid #0d6efd;">
+            <div style="color:#666; font-size:14px;"><strong>Tip:</strong> Reply to the customer within 24 hours for better conversion.</div>
+          </div>
+          <p style="color:#999; font-size:12px; margin-top:18px;">Assigned on ${new Date().toLocaleString()}</p>
+        </td>
+      </tr>
+      <tr style="background:#f1f3f5;">
+        <td style="text-align:center; padding:16px; color:#999; font-size:12px;">© ${new Date().getFullYear()} Travel-Yatra. All rights reserved.</td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+    const result = await sendEmail({
+      to: assigneeEmail,
+      subject: `Lead Assigned: ${booking.name || 'Customer'} - ${booking.package || 'Package'}`,
+      text: `You have been assigned a new lead: ${booking.name} (${booking.email || 'N/A'})`,
+      html,
+      cc: cc || (process.env.ADMIN_EMAIL || process.env.SMTP_USER)
+    });
+
+    if (!result || !result.success) {
+      return res.status(500).json({ success: false, message: result?.error || "Failed to send assignment email" });
+    }
+
+    res.json({ success: true, message: "Assignment email sent", data: { bookingId: booking._id, assigneeEmail } });
+  } catch (error) {
+    console.error("Error assigning booking:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 app.post("/api/contacts", async (req, res) => {
   try {
     const { name, contact, email } = req.body;
